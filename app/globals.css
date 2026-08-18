@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+/* set of colours used across the whole app */
+:root {
+  --bg: #f3f7f7;
+  --surface: #ffffff;
+  --border: #cfe0e1;
+  --text: #16262b;
+  --text-muted: #4b6167;
+  --primary: #2b6777;
+  --accent: #e2932e;
+  --correct: #3f8f5f;
+  --correct-bg: #d8efe0;
+  --present: #c98a1d;
+  --present-bg: #f7e6c4;
+  --absent-bg: #e3e9ea;
+}
+
+/* The dark theme */
+.dark-theme {
+  --bg: #10181d;
+  --surface: #17262a;
+  --border: #2a444a;
+  --text: #e8f0ef;
+  --text-muted: #a9c1c4;
+  --primary: #7bc3d1;
+  --accent: #f2ab54;
+  --correct: #63c98c;
+  --correct-bg: #17392a;
+  --present: #e0b458;
+  --present-bg: #3a2f14;
+  --absent-bg: #24393d;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* makes large text setting bump up the base font size site-wide */
+.large-text {
+  font-size: 19px;
+}
