@@ -1,4 +1,4 @@
-# Phoneme Builder — Task 2 (v4, in progress)
+# Phoneme Builder — Task 2 (in progress, 4th attempt)
 
 A classroom activity builder for Speech Pathology teachers. Teachers build
 activities out of phonemes (sounds), and the app turns them into a Wordle
