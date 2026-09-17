@@ -1,0 +1,63 @@
+// This file describes the shape of our database: what tables exist and
+// how they relate to each other. Prisma reads this file and generates a
+// type-safe client we use to read and write data in our code.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+  // "client" here means Prisma runs in plain JavaScript with no separate
+  // Rust binary to download. That keeps installs and the Docker image
+  // simpler, at the cost of needing a "driver adapter" package (see
+  // lib/db.ts) to actually talk to the database.
+  engineType = "client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// The two kinds of activity a teacher can build.
+enum ActivityType {
+  WORDLE
+  WORDSEARCH
+}
+
+// One saved activity configuration -- a Wordle game or a Word Search
+// puzzle, with its own settings and its own list of words. A teacher can
+// create as many of these as they like.
+model Activity {
+  id             Int          @id @default(autoincrement())
+  title          String
+  type           ActivityType
+  showHints      Boolean      @default(true)
+  maxGuesses     Int?         // only used by Wordle activities
+  gridSize       Int?         // only used by Word Search activities
+  allowDiagonals Boolean?     // only used by Word Search activities
+  words          Word[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+// One word inside an activity, in its everyday English spelling. Its
+// sounds are stored separately, in the Phoneme table below.
+model Word {
+  id         Int       @id @default(autoincrement())
+  english    String
+  order      Int       @default(0) // keeps words in the order they were added
+  activityId Int
+  activity   Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  phonemes   Phoneme[]
+}
+
+// One phoneme (unit of sound) inside a word. This is its own database
+// row -- not just one character of a text field -- because a phoneme
+// symbol can be more than one character long (e.g. "tʃ" or "əʉ"), and
+// storing each one separately means that length is never a problem.
+model Phoneme {
+  id       Int    @id @default(autoincrement())
+  symbol   String
+  position Int    // keeps phonemes in the right order within the word
+  wordId   Int
+  word     Word   @relation(fields: [wordId], references: [id], onDelete: Cascade)
+}
