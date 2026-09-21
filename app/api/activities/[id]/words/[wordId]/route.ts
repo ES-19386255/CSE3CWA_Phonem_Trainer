@@ -42,7 +42,10 @@ export const PATCH = withErrorHandling(async (request: Request, { params }: Rout
   // Replacing the old phonemes and updating the word happen as one
   // transaction, so a failure partway through can't leave the word with
   // no phonemes at all -- either both steps happen, or neither does.
-  const [, word] = await prisma.$transaction([
+  // The word update is always the LAST item in this array (whether or
+  // not a phoneme delete comes before it), so grabbing the last result
+  // is correct regardless of how many steps ran.
+  const results = await prisma.$transaction([
     ...(data.sounds ? [prisma.phoneme.deleteMany({ where: { wordId: wid } })] : []),
     prisma.word.update({
       where: { id: wid },
@@ -55,6 +58,7 @@ export const PATCH = withErrorHandling(async (request: Request, { params }: Rout
       include: { phonemes: { orderBy: { position: "asc" } } },
     }),
   ]);
+  const word = results[results.length - 1];
 
   return NextResponse.json(word);
 });
