@@ -57,6 +57,43 @@ confirm they render correctly and contain the expected content, though the
 interactive load/save flow hasn't been exercised against a real database
 yet — worth trying for real once this is running locally.
 
+## Docker
+
+```bash
+docker build -t phoneme-builder .
+docker run -p 3000:3000 phoneme-builder
+```
+
+Then open <http://localhost:3000>, or check <http://localhost:3000/health>.
+
+The Dockerfile is a three-stage build:
+
+1. **deps** — installs dependencies once, in their own layer, so this step
+   is only re-run when `package.json`/`package-lock.json` actually change.
+2. **builder** — copies in the source, generates the Prisma client,
+   creates and seeds a starter SQLite database, and runs `next build`, all
+   inside the image.
+3. **runner** — copies across only what's needed to actually run the app
+   (`node_modules`, the built `.next` output, `public`, `prisma`, and the
+   config files), and runs it as a non-root user.
+
+A Debian-based image (`node:22-bookworm-slim`), not Alpine, is used on
+purpose: `better-sqlite3` is a native module, and Debian's glibc has much
+more reliable pre-built binaries available for it than Alpine's musl libc,
+which often forces a slower, more error-prone compile-from-source step.
+
+The image also declares a `HEALTHCHECK` that calls `/health` directly, so
+`docker ps` reports the container's health using the same endpoint the
+brief asks for.
+
+**Data note:** the database is seeded once, at build time, and lives
+inside the image — so every fresh `docker run` starts from the same known
+state, but changes made while the container is running won't survive a
+restart unless a volume is mounted over `/app/prisma`, e.g.:
+
+```bash
+docker run -p 3000:3000 -v phoneme-data:/app/prisma phoneme-builder
+```
 ## Node version
 
 Use Node 22 LTS (or another LTS release), not the very newest "Current"
