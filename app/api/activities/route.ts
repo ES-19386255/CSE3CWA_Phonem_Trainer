@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createActivitySchema } from "@/lib/validation";
-import { errorResponse, validationErrorResponse } from "@/lib/apiError";
+import { errorResponse, validationErrorResponse, withErrorHandling } from "@/lib/apiError";
 
 // Every activity a teacher has saved, newest first, with their words and
 // phonemes included so the frontend doesn't need a second request per activity.
-export async function GET() {
+export const GET = withErrorHandling(async () => {
   const activities = await prisma.activity.findMany({
     orderBy: { createdAt: "desc" },
     include: {
@@ -16,10 +16,10 @@ export async function GET() {
     },
   });
   return NextResponse.json(activities);
-}
+});
 
 // Creates a new activity, optionally with its word list included right away.
-export async function POST(request: Request) {
+export const POST = withErrorHandling(async (request: Request) => {
   let body: unknown;
   try {
     body = await request.json();
@@ -51,4 +51,4 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json(activity, { status: 201 });
-}
+});

@@ -14,3 +14,21 @@ export function validationErrorResponse(error: ZodError) {
   const firstIssue = error.issues[0];
   return errorResponse(firstIssue?.message ?? "Invalid request data", 400);
 }
+
+// Wraps a route handler so any *unexpected* error -- a bug, a database
+// problem, anything not already handled -- still comes back in the same
+// { error: "..." } shape instead of a raw stack trace or a blank 500.
+// The real error is logged server-side; the client only ever sees a safe,
+// generic message.
+export function withErrorHandling<Args extends unknown[]>(
+  handler: (...args: Args) => Promise<Response>
+) {
+  return async (...args: Args): Promise<Response> => {
+    try {
+      return await handler(...args);
+    } catch (err) {
+      console.error("Unexpected API error:", err);
+      return errorResponse("Something went wrong handling that request", 500);
+    }
+  };
+}

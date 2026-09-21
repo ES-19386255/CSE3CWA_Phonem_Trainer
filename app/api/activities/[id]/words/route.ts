@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createWordSchema } from "@/lib/validation";
-import { errorResponse, validationErrorResponse } from "@/lib/apiError";
+import { errorResponse, validationErrorResponse, withErrorHandling } from "@/lib/apiError";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -11,7 +11,7 @@ function parseId(id: string): number | null {
 }
 
 // Adds one new word to the end of an activity's word list.
-export async function POST(request: Request, { params }: RouteParams) {
+export const POST = withErrorHandling(async (request: Request, { params }: RouteParams) => {
   const activityId = parseId((await params).id);
   if (activityId === null) return errorResponse("Invalid activity id", 400);
 
@@ -43,4 +43,4 @@ export async function POST(request: Request, { params }: RouteParams) {
   });
 
   return NextResponse.json(word, { status: 201 });
-}
+});

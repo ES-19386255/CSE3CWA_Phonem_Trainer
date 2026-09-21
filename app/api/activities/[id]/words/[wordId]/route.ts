@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { updateWordSchema } from "@/lib/validation";
-import { errorResponse, validationErrorResponse } from "@/lib/apiError";
+import { errorResponse, validationErrorResponse, withErrorHandling } from "@/lib/apiError";
 
 type RouteParams = { params: Promise<{ id: string; wordId: string }> };
 
@@ -19,7 +19,7 @@ async function findWordInActivity(activityId: number, wordId: number) {
 // Updates a word's English spelling and/or its phonemes. Sending a new
 // "sounds" list replaces the old phonemes entirely, rather than merging
 // with them, since a partial phoneme edit wouldn't make sense on its own.
-export async function PATCH(request: Request, { params }: RouteParams) {
+export const PATCH = withErrorHandling(async (request: Request, { params }: RouteParams) => {
   const { id, wordId } = await params;
   const activityId = parseId(id);
   const wid = parseId(wordId);
@@ -39,27 +39,29 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   if (!parsed.success) return validationErrorResponse(parsed.error);
   const data = parsed.data;
 
-  if (data.sounds) {
-    await prisma.phoneme.deleteMany({ where: { wordId: wid } });
-  }
-
-  const word = await prisma.word.update({
-    where: { id: wid },
-    data: {
-      english: data.english,
-      phonemes: data.sounds
-        ? { create: data.sounds.map((symbol, position) => ({ symbol, position })) }
-        : undefined,
-    },
-    include: { phonemes: { orderBy: { position: "asc" } } },
-  });
+  // Replacing the old phonemes and updating the word happen as one
+  // transaction, so a failure partway through can't leave the word with
+  // no phonemes at all -- either both steps happen, or neither does.
+  const [, word] = await prisma.$transaction([
+    ...(data.sounds ? [prisma.phoneme.deleteMany({ where: { wordId: wid } })] : []),
+    prisma.word.update({
+      where: { id: wid },
+      data: {
+        english: data.english,
+        phonemes: data.sounds
+          ? { create: data.sounds.map((symbol, position) => ({ symbol, position })) }
+          : undefined,
+      },
+      include: { phonemes: { orderBy: { position: "asc" } } },
+    }),
+  ]);
 
   return NextResponse.json(word);
-}
+});
 
 // Deletes one word from an activity. Its phonemes are deleted
 // automatically (the database cascades this, see prisma/schema.prisma).
-export async function DELETE(_request: Request, { params }: RouteParams) {
+export const DELETE = withErrorHandling(async (_request: Request, { params }: RouteParams) => {
   const { id, wordId } = await params;
   const activityId = parseId(id);
   const wid = parseId(wordId);
@@ -70,4 +72,4 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
 
   await prisma.word.delete({ where: { id: wid } });
   return NextResponse.json({ deleted: true });
-}
+});
