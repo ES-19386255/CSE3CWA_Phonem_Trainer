@@ -8,7 +8,8 @@ export const metadata: Metadata = {
   description: "A classroom activity builder for Speech Pathology teachers.",
 };
 
-// script runs before the page loads so the saved theme/text size cookie is applied
+// This tiny script runs before the page paints, so the saved theme/text
+// size cookie is applied immediately instead of flashing the default look.
 const THEME_SCRIPT = `
 try {
   var cookie = document.cookie;
@@ -19,7 +20,7 @@ try {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
