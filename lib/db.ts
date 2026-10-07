@@ -21,5 +21,22 @@ const rawUrl = process.env.DATABASE_URL;
 const isAbsoluteFileUrl = rawUrl && path.isAbsolute(rawUrl.replace(/^file:/, ""));
 const databaseUrl = isAbsoluteFileUrl ? rawUrl! : `file:${defaultDbPath}`;
 
-const adapter = new PrismaBetterSQLite3({ url: databaseUrl });
+// timeout = how long (ms) a query waits if the database file is busy,
+// instead of failing straight away. Helps when many requests arrive at once.
+const adapter = new PrismaBetterSQLite3({ url: databaseUrl, timeout: 10000 });
 export const prisma = new PrismaClient({ adapter });
+
+// Turns on SQLite's WAL mode, which lets reads carry on while a write is
+// happening. That matters for the load tests. The setting is saved inside
+// the database file, so it only needs doing once. It runs on the first
+// /health call (and in the seed), and is remembered so it isn't repeated.
+let walPromise: Promise<unknown> | null = null;
+export function ensureWal() {
+  if (!walPromise) {
+    walPromise = prisma.$queryRawUnsafe("PRAGMA journal_mode = WAL").catch((err) => {
+      walPromise = null; // try again next time if it failed
+      console.error("Could not turn on WAL mode:", err);
+    });
+  }
+  return walPromise;
+}

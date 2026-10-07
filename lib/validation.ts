@@ -68,3 +68,28 @@ export const updateWordSchema = wordSchema
   .partial()
   .refine((data) => Object.keys(data).length > 0, { error: "Nothing to update was provided" });
 
+
+// A page view reported by the browser: which page, and how many seconds
+// it was open. The limits stop silly numbers (or abuse) getting stored.
+export const pageViewSchema = z.object({
+  path: z
+    .string({ error: "A page path is needed" })
+    .trim()
+    .min(1, "A page path is needed")
+    .max(200, "Page path is too long")
+    .startsWith("/", "Page path must start with /"),
+  durationSeconds: z
+    .number({ error: "Duration must be a number" })
+    .min(0, "Duration can't be negative")
+    .max(3600, "Duration is over an hour, which looks wrong")
+    .transform((n) => Math.round(n)),
+});
+
+// A generation result reported by the builder pages (they build the file
+// in the browser, so they tell the server how it went).
+export const generationEventSchema = z.object({
+  activityType: z.enum(["WORDLE", "WORDSEARCH"], { error: "Type must be WORDLE or WORDSEARCH" }),
+  success: z.boolean({ error: "success must be true or false" }),
+  errorMessage: z.string().trim().max(300).optional(),
+  activityId: z.number().int().positive().optional(),
+});

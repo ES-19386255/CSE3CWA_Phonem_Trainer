@@ -4,7 +4,7 @@
 // snapshots) so the Task 3 dashboard has something to show. Every fake row
 // has simulated = true so it can always be told apart from real use.
 
-import { prisma } from "../lib/db";
+import { ensureWal, prisma } from "../lib/db";
 
 type Sounds = { english: string; sounds: string[] };
 
@@ -51,6 +51,7 @@ const PAGES = [
 ];
 
 async function main() {
+  await ensureWal(); // WAL mode, see lib/db.ts
   // Clear out any existing data first, so the seed script can be re-run safely.
   await prisma.statSnapshot.deleteMany();
   await prisma.generationEvent.deleteMany();
@@ -111,7 +112,7 @@ async function main() {
   const wordleIds = [wordle1.id, wordle2.id, wordle3.id];
   const searchIds = [search1.id, search2.id];
 
-  const events = Array.from({ length: 150 }, () => {
+  const events = Array.from({ length: 143 }, () => {
     const isWordle = random() < 0.6; // Wordle is used a bit more
     const success = random() < 0.88;
     return {
@@ -123,6 +124,18 @@ async function main() {
       createdAt: new Date(now - random() * 14 * DAY),
     };
   });
+  // A few attempts in the last 12 hours, with 3 failures, so the
+  // "failed generation" alert has something to show on the dashboard.
+  const HOUR = 60 * 60 * 1000;
+  const recent = [true, true, false, true, false, true, false].map((success, i) => ({
+    activityId: i % 2 === 0 ? wordle1.id : search1.id,
+    activityType: i % 2 === 0 ? ("WORDLE" as const) : ("WORDSEARCH" as const),
+    success,
+    errorMessage: success ? null : "Word list is empty",
+    simulated: true,
+    createdAt: new Date(now - (i + 1) * 1.5 * HOUR),
+  }));
+  events.push(...recent);
   await prisma.generationEvent.createMany({ data: events });
 
   // ---- simulated page views ----
@@ -138,10 +151,10 @@ async function main() {
   });
   await prisma.pageView.createMany({ data: views });
 
-  // ---- simulated daily stat snapshots (one per day for the last week) ----
+  // ---- simulated daily stat snapshots (one per day, yesterday and back a week) ----
   const wordleCount = 4; // counts for the activities made above
   const wordSearchCount = 3;
-  for (let day = 6; day >= 0; day--) {
+  for (let day = 7; day >= 1; day--) {
     const cutoff = now - day * DAY;
     const eventsSoFar = events.filter((e) => e.createdAt.getTime() <= cutoff);
     const viewsSoFar = views.filter((v) => v.createdAt.getTime() <= cutoff);
