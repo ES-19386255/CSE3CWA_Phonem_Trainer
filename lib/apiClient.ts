@@ -12,6 +12,8 @@ export type ApiActivity = {
   maxGuesses: number | null;
   gridSize: number | null;
   allowDiagonals: boolean | null;
+  wordListId: number;
+  wordListName: string;
   words: ApiWord[];
 };
 
@@ -24,6 +26,7 @@ export type NewActivityInput = {
   gridSize?: number;
   allowDiagonals?: boolean;
   words?: NewWordInput[];
+  wordListId?: number; // reuse an existing list
 };
 
 // Reads a fetch Response as JSON, and turns a non-2xx response into a

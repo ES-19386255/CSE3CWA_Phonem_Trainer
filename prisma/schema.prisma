@@ -3,8 +3,8 @@
 // type-safe client we use to read and write data in our code.
 
 generator client {
-  provider = "prisma-client"
-  output   = "../lib/generated/prisma"
+  provider   = "prisma-client"
+  output     = "../lib/generated/prisma"
   // "client" here means Prisma runs in plain JavaScript with no separate
   // Rust binary to download. That keeps installs and the Docker image
   // simpler, at the cost of needing a "driver adapter" package (see
@@ -24,29 +24,41 @@ enum ActivityType {
 }
 
 // One saved activity configuration -- a Wordle game or a Word Search
-// puzzle, with its own settings and its own list of words. A teacher can
-// create as many of these as they like.
+// puzzle, with its own settings. Its words now live in a WordList (below)
+// so more than one activity can reuse the same list.
 model Activity {
-  id             Int          @id @default(autoincrement())
+  id             Int               @id @default(autoincrement())
   title          String
   type           ActivityType
-  showHints      Boolean      @default(true)
-  maxGuesses     Int?         // only used by Wordle activities
-  gridSize       Int?         // only used by Word Search activities
-  allowDiagonals Boolean?     // only used by Word Search activities
-  words          Word[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  showHints      Boolean           @default(true)
+  maxGuesses     Int? // only used by Wordle activities
+  gridSize       Int? // only used by Word Search activities
+  allowDiagonals Boolean? // only used by Word Search activities
+  wordListId     Int
+  wordList       WordList          @relation(fields: [wordListId], references: [id], onDelete: Restrict)
+  events         GenerationEvent[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 }
 
-// One word inside an activity, in its everyday English spelling. Its
+// A named, reusable list of words. Several activities can point at the
+// same list (e.g. one Wordle and one Word Search using the same words).
+model WordList {
+  id         Int        @id @default(autoincrement())
+  name       String
+  words      Word[]
+  activities Activity[]
+  createdAt  DateTime   @default(now())
+}
+
+// One word inside a word list, in its everyday English spelling. Its
 // sounds are stored separately, in the Phoneme table below.
 model Word {
   id         Int       @id @default(autoincrement())
   english    String
   order      Int       @default(0) // keeps words in the order they were added
-  activityId Int
-  activity   Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  wordListId Int
+  wordList   WordList  @relation(fields: [wordListId], references: [id], onDelete: Cascade)
   phonemes   Phoneme[]
 }
 
@@ -57,7 +69,51 @@ model Word {
 model Phoneme {
   id       Int    @id @default(autoincrement())
   symbol   String
-  position Int    // keeps phonemes in the right order within the word
+  position Int // keeps phonemes in the right order within the word
   wordId   Int
   word     Word   @relation(fields: [wordId], references: [id], onDelete: Cascade)
+}
+
+// ---- Task 3: tables the dashboard reads from ----
+
+// One attempt to generate an activity (success or failure). activityId can
+// go null if the activity is deleted later, so the history is kept.
+// activityType is copied in so stats still work after a delete.
+// simulated = true marks the fake records made by the seed script.
+model GenerationEvent {
+  id           Int          @id @default(autoincrement())
+  activityId   Int?
+  activity     Activity?    @relation(fields: [activityId], references: [id], onDelete: SetNull)
+  activityType ActivityType
+  success      Boolean
+  errorMessage String?
+  simulated    Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+
+  @@index([createdAt])
+}
+
+// One visit to a page and how long it stayed open, for "average time on page".
+model PageView {
+  id              Int      @id @default(autoincrement())
+  path            String
+  durationSeconds Int
+  simulated       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// A saved copy of the dashboard numbers at one moment, so the stats
+// themselves are stored in the database and can be looked at over time.
+model StatSnapshot {
+  id                Int      @id @default(autoincrement())
+  wordleCount       Int
+  wordSearchCount   Int
+  generationsOk     Int
+  generationsFailed Int
+  avgTimeOnPage     Float
+  mostUsedType      String?
+  simulated         Boolean  @default(false)
+  createdAt         DateTime @default(now())
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { updateActivitySchema } from "@/lib/validation";
+import { activityInclude, toApiActivity } from "@/lib/activityQuery";
 import { errorResponse, validationErrorResponse, withErrorHandling } from "@/lib/apiError";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -17,16 +18,11 @@ export const GET = withErrorHandling(async (_request: Request, { params }: Route
 
   const activity = await prisma.activity.findUnique({
     where: { id: activityId },
-    include: {
-      words: {
-        orderBy: { order: "asc" },
-        include: { phonemes: { orderBy: { position: "asc" } } },
-      },
-    },
+    include: activityInclude,
   });
   if (!activity) return errorResponse("Activity not found", 404);
 
-  return NextResponse.json(activity);
+  return NextResponse.json(toApiActivity(activity));
 });
 
 // Updates an activity's own settings (title, type, hints, difficulty).
@@ -59,19 +55,14 @@ export const PATCH = withErrorHandling(async (request: Request, { params }: Rout
       gridSize: data.gridSize,
       allowDiagonals: data.allowDiagonals,
     },
-    include: {
-      words: {
-        orderBy: { order: "asc" },
-        include: { phonemes: { orderBy: { position: "asc" } } },
-      },
-    },
+    include: activityInclude,
   });
 
-  return NextResponse.json(activity);
+  return NextResponse.json(toApiActivity(activity));
 });
 
-// Deletes an activity. Its words and their phonemes are deleted
-// automatically (the database cascades this, see prisma/schema.prisma).
+// Deletes an activity. If no other activity uses its word list, the list
+// (and its words and phonemes) is deleted too. A shared list is kept.
 export const DELETE = withErrorHandling(async (_request: Request, { params }: RouteParams) => {
   const activityId = parseId((await params).id);
   if (activityId === null) return errorResponse("Invalid activity id", 400);
@@ -80,5 +71,10 @@ export const DELETE = withErrorHandling(async (_request: Request, { params }: Ro
   if (!existing) return errorResponse("Activity not found", 404);
 
   await prisma.activity.delete({ where: { id: activityId } });
+
+  const stillUsed = await prisma.activity.count({ where: { wordListId: existing.wordListId } });
+  if (stillUsed === 0) {
+    await prisma.wordList.delete({ where: { id: existing.wordListId } });
+  }
   return NextResponse.json({ deleted: true });
 });

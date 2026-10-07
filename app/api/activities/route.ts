@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createActivitySchema } from "@/lib/validation";
+import { activityInclude, toApiActivity } from "@/lib/activityQuery";
 import { errorResponse, validationErrorResponse, withErrorHandling } from "@/lib/apiError";
 
 // Every activity a teacher has saved, newest first, with their words and
@@ -8,14 +9,9 @@ import { errorResponse, validationErrorResponse, withErrorHandling } from "@/lib
 export const GET = withErrorHandling(async () => {
   const activities = await prisma.activity.findMany({
     orderBy: { createdAt: "desc" },
-    include: {
-      words: {
-        orderBy: { order: "asc" },
-        include: { phonemes: { orderBy: { position: "asc" } } },
-      },
-    },
+    include: activityInclude,
   });
-  return NextResponse.json(activities);
+  return NextResponse.json(activities.map(toApiActivity));
 });
 
 // Creates a new activity, optionally with its word list included right away.
@@ -31,6 +27,28 @@ export const POST = withErrorHandling(async (request: Request) => {
   if (!parsed.success) return validationErrorResponse(parsed.error);
   const data = parsed.data;
 
+  // Either reuse a word list that already exists, or make a new one
+  // (named after the activity) from the words that were sent.
+  let wordListData;
+  if (data.wordListId !== undefined) {
+    const list = await prisma.wordList.findUnique({ where: { id: data.wordListId } });
+    if (!list) return errorResponse("Word list not found", 404);
+    wordListData = { connect: { id: data.wordListId } };
+  } else {
+    wordListData = {
+      create: {
+        name: data.title,
+        words: {
+          create: data.words.map((word, order) => ({
+            english: word.english,
+            order,
+            phonemes: { create: word.sounds.map((symbol, position) => ({ symbol, position })) },
+          })),
+        },
+      },
+    };
+  }
+
   const activity = await prisma.activity.create({
     data: {
       title: data.title,
@@ -39,16 +57,10 @@ export const POST = withErrorHandling(async (request: Request) => {
       maxGuesses: data.maxGuesses,
       gridSize: data.gridSize,
       allowDiagonals: data.allowDiagonals,
-      words: {
-        create: data.words.map((word, order) => ({
-          english: word.english,
-          order,
-          phonemes: { create: word.sounds.map((symbol, position) => ({ symbol, position })) },
-        })),
-      },
+      wordList: wordListData,
     },
-    include: { words: { include: { phonemes: true } } },
+    include: activityInclude,
   });
 
-  return NextResponse.json(activity, { status: 201 });
+  return NextResponse.json(toApiActivity(activity), { status: 201 });
 });

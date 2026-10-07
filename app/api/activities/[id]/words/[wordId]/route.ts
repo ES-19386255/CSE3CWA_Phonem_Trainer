@@ -10,10 +10,12 @@ function parseId(id: string): number | null {
   return Number.isInteger(parsed) ? parsed : null;
 }
 
-// Finds a word, but only if it actually belongs to the given activity --
-// this stops one activity's URL being used to edit another activity's word.
+// Finds a word, but only if it is in the given activity's word list --
+// this stops one activity's URL being used to edit an unrelated word.
 async function findWordInActivity(activityId: number, wordId: number) {
-  return prisma.word.findFirst({ where: { id: wordId, activityId } });
+  const activity = await prisma.activity.findUnique({ where: { id: activityId } });
+  if (!activity) return null;
+  return prisma.word.findFirst({ where: { id: wordId, wordListId: activity.wordListId } });
 }
 
 // Updates a word's English spelling and/or its phonemes. Sending a new

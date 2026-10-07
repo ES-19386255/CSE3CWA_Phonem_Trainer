@@ -48,6 +48,8 @@ export const createActivitySchema = z.object({
   ...activitySettingFields,
   showHints: z.boolean().optional().default(true),
   words: z.array(wordSchema).optional().default([]),
+  // Optional: reuse an existing word list instead of sending new words.
+  wordListId: z.number().int().positive().optional(),
 });
 
 // Updating an activity's own settings: every field is optional (an
