@@ -7,6 +7,7 @@ const PRIMARY_LINKS = [
   { href: "/", label: "Home" },
   { href: "/wordle", label: "Wordle" },
   { href: "/wordsearch", label: "Word Search" },
+  { href: "/activities", label: "Manage" },
 ];
 
 const MENU_LINKS = [
@@ -14,7 +15,7 @@ const MENU_LINKS = [
   { href: "/settings", label: "Settings" },
 ];
 
-// Site header shows the project title, the main page links and a kebab menu (always visible)
+// site header
 export default function NavBar() {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -35,17 +36,17 @@ export default function NavBar() {
               </li>
             ))}
           </ul>
-
-        <div className="relative">
-          <button
-            type="button"
-            className="rounded-md p-2 text-lg leading-none hover:bg-[var(--bg)]"
-            aria-label="Open menu"
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen(!menuOpen)}
-          >
-            ⋮
-          </button>
+          
+          <div className="relative">
+            <button
+              type="button"
+              className="rounded-md p-2 text-lg leading-none hover:bg-[var(--bg)]"
+              aria-label="Open menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen(!menuOpen)}
+            >
+              ⋮
+            </button>
 
             {menuOpen && (
               <ul className="absolute right-0 mt-1 w-40 rounded-md border border-[var(--border)] bg-[var(--surface)] py-1 shadow-md">
