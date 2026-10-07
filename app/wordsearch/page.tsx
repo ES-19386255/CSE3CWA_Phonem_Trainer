@@ -18,12 +18,21 @@ export default function WordSearchPage() {
   const [wordList, setWordList] = useState<PhonemeWord[]>(WORD_SEARCH_LIST);
   // The grid is built once and stored in state, so the preview and the
   // downloaded file always show exactly the same puzzle.
-  const [grid, setGrid] = useState<WordSearchGrid>(() => buildWordSearch(WORD_SEARCH_LIST, 10));
+  // It starts empty and is filled in right after the page loads. Building a
+  // random grid during the first render gave the server and the browser
+  // different grids, which caused a React hydration error.
+  const [grid, setGrid] = useState<WordSearchGrid>({ size: 10, letters: [], placed: [] });
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- runs once on load, so the random grid only exists in the browser
+    setGrid(buildWordSearch(WORD_SEARCH_LIST, 10));
+  }, []);
 
   const [savedActivities, setSavedActivities] = useState<ApiActivity[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [saveTitle, setSaveTitle] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
+  const [generateMessage, setGenerateMessage] = useState("");
 
   useEffect(() => {
     api
@@ -86,9 +95,23 @@ export default function WordSearchPage() {
   }
 
   // Turns the current puzzle into a downloadable HTML file.
+  // Whatever happens is reported to the server, so the dashboard can count it.
   function handleGenerate() {
-    const html = buildWordSearchHtml(grid, showHints);
-    downloadTextFile("word-search.html", html);
+    setGenerateMessage("");
+    const activityId = selectedId ? Number(selectedId) : undefined;
+    try {
+      if (wordList.length === 0) throw new Error("Word list is empty");
+      if (wordList.some((word) => word.sounds.length === 0)) throw new Error("A word has no phonemes");
+      // The grid builder quietly skips words that don't fit, so check for that.
+      if (grid.placed.length < wordList.length) throw new Error("Could not place every word in the grid");
+      const html = buildWordSearchHtml(grid, showHints);
+      downloadTextFile("word-search.html", html);
+      api.reportGeneration({ activityType: "WORDSEARCH", success: true, activityId });
+    } catch (err) {
+      const message = (err as Error).message || "Could not build the file";
+      setGenerateMessage(message);
+      api.reportGeneration({ activityType: "WORDSEARCH", success: false, errorMessage: message, activityId });
+    }
   }
 
   return (
@@ -151,6 +174,11 @@ export default function WordSearchPage() {
           >
             Generate downloadable HTML
           </button>
+          {generateMessage && (
+            <p role="alert" className="mt-2 text-sm font-medium text-[var(--danger)]">
+              Could not generate: {generateMessage}
+            </p>
+          )}
 
           {/* Saving to the database keeps this word list around to reload
               or edit later -- separate from generating a file for a student. */}

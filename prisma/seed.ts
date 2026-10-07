@@ -35,13 +35,6 @@ function makeRandom(seed: number) {
   };
 }
 
-const FAILURE_MESSAGES = [
-  "Word list is empty",
-  "A word has no phonemes",
-  "Could not place every word in the grid",
-  "Activity data was invalid",
-];
-
 const PAGES = [
   { path: "/wordle", weight: 5, min: 40, max: 240 },
   { path: "/wordsearch", weight: 4, min: 40, max: 220 },
@@ -90,7 +83,7 @@ async function main() {
 
   // An empty list: the dashboard should warn about this one.
   const emptyList = await prisma.wordList.create({ data: { name: "Empty list (simulated)" } });
-  await prisma.activity.create({
+  const emptyActivity = await prisma.activity.create({
     data: { title: "Empty Wordle (simulated)", type: "WORDLE", showHints: true, maxGuesses: 6, wordListId: emptyList.id },
   });
 
@@ -99,7 +92,7 @@ async function main() {
   const brokenList = await prisma.wordList.create({
     data: { name: "Broken list (simulated)", words: { create: [{ english: "broken", order: 0 }] } },
   });
-  await prisma.activity.create({
+  const brokenActivity = await prisma.activity.create({
     data: { title: "Broken Word Search (simulated)", type: "WORDSEARCH", showHints: true, gridSize: 10, allowDiagonals: false, wordListId: brokenList.id },
   });
 
@@ -115,11 +108,13 @@ async function main() {
   const events = Array.from({ length: 143 }, () => {
     const isWordle = random() < 0.6; // Wordle is used a bit more
     const success = random() < 0.88;
+    // Failures only come from the two deliberately bad activities, so
+    // the reason always matches what is really wrong with them.
     return {
-      activityId: pick(isWordle ? wordleIds : searchIds),
+      activityId: success ? pick(isWordle ? wordleIds : searchIds) : isWordle ? emptyActivity.id : brokenActivity.id,
       activityType: isWordle ? ("WORDLE" as const) : ("WORDSEARCH" as const),
       success,
-      errorMessage: success ? null : pick(FAILURE_MESSAGES),
+      errorMessage: success ? null : isWordle ? "Word list is empty" : "A word has no phonemes",
       simulated: true,
       createdAt: new Date(now - random() * 14 * DAY),
     };
@@ -128,10 +123,10 @@ async function main() {
   // "failed generation" alert has something to show on the dashboard.
   const HOUR = 60 * 60 * 1000;
   const recent = [true, true, false, true, false, true, false].map((success, i) => ({
-    activityId: i % 2 === 0 ? wordle1.id : search1.id,
+    activityId: success ? (i % 2 === 0 ? wordle1.id : search1.id) : i % 2 === 0 ? emptyActivity.id : brokenActivity.id,
     activityType: i % 2 === 0 ? ("WORDLE" as const) : ("WORDSEARCH" as const),
     success,
-    errorMessage: success ? null : "Word list is empty",
+    errorMessage: success ? null : i % 2 === 0 ? "Word list is empty" : "A word has no phonemes",
     simulated: true,
     createdAt: new Date(now - (i + 1) * 1.5 * HOUR),
   }));

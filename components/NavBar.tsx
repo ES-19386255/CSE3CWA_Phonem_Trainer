@@ -8,6 +8,7 @@ const PRIMARY_LINKS = [
   { href: "/wordle", label: "Wordle" },
   { href: "/wordsearch", label: "Word Search" },
   { href: "/activities", label: "Manage" },
+  { href: "/dashboard", label: "Dashboard" },
 ];
 
 const MENU_LINKS = [
@@ -15,7 +16,8 @@ const MENU_LINKS = [
   { href: "/settings", label: "Settings" },
 ];
 
-// site header
+// The site header: shows the project title, the main page links, and a
+// kebab menu (always visible, not just on mobile) for About and Settings.
 export default function NavBar() {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -36,7 +38,9 @@ export default function NavBar() {
               </li>
             ))}
           </ul>
-          
+
+          {/* Kebab menu button: stays visible on every screen size, and
+              holds the two secondary pages (About and Settings). */}
           <div className="relative">
             <button
               type="button"

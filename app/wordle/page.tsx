@@ -18,11 +18,13 @@ export default function WordlePage() {
   const [showHints, setShowHints] = useState(true);
   const [maxGuesses, setMaxGuesses] = useState(6);
 
-  // Saved Wordle activities loaded from the database
+  // Saved Wordle activities loaded from the database, so a teacher can
+  // pick up a word list they saved earlier instead of starting from scratch.
   const [savedActivities, setSavedActivities] = useState<ApiActivity[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [saveTitle, setSaveTitle] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
+  const [generateMessage, setGenerateMessage] = useState("");
 
   useEffect(() => {
     api
@@ -76,9 +78,20 @@ export default function WordlePage() {
   }
 
   // Turns the current settings into a downloadable HTML file.
+  // Whatever happens is reported to the server, so the dashboard can count it.
   function handleGenerate() {
-    const html = buildWordleHtml({ sounds, english, showHints, maxGuesses });
-    downloadTextFile(`wordle-${english || "activity"}.html`, html);
+    setGenerateMessage("");
+    const activityId = selectedId ? Number(selectedId) : undefined;
+    try {
+      if (sounds.length === 0) throw new Error("Word list is empty");
+      const html = buildWordleHtml({ sounds, english, showHints, maxGuesses });
+      downloadTextFile(`wordle-${english || "activity"}.html`, html);
+      api.reportGeneration({ activityType: "WORDLE", success: true, activityId });
+    } catch (err) {
+      const message = (err as Error).message || "Could not build the file";
+      setGenerateMessage(message);
+      api.reportGeneration({ activityType: "WORDLE", success: false, errorMessage: message, activityId });
+    }
   }
 
   const canGenerate = sounds.length > 0 && english.trim().length > 0;
@@ -160,6 +173,11 @@ export default function WordlePage() {
           >
             Generate downloadable HTML
           </button>
+          {generateMessage && (
+            <p role="alert" className="mt-2 text-sm font-medium text-[var(--danger)]">
+              Could not generate: {generateMessage}
+            </p>
+          )}
 
           {/* Saving to the database is separate from generating a file --
               one produces a file for a student, the other keeps this word

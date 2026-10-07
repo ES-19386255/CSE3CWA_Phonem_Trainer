@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* set of colours used across the whole app */
+/* A small set of colours used across the whole app, so every page matches. */
 :root {
   --bg: #f3f7f7;
   --surface: #ffffff;
@@ -14,9 +14,12 @@
   --present: #c98a1d;
   --present-bg: #f7e6c4;
   --absent-bg: #e3e9ea;
+  --danger: #b3261e;
+  --danger-bg: #fbe4e2;
+  --warning-bg: #fdf1d6;
 }
 
-/* The dark theme */
+/* The dark theme swaps the same variables to darker/lighter equivalents. */
 .dark-theme {
   --bg: #10181d;
   --surface: #17262a;
@@ -30,6 +33,9 @@
   --present: #e0b458;
   --present-bg: #3a2f14;
   --absent-bg: #24393d;
+  --danger: #ff8a80;
+  --danger-bg: #3d1f1d;
+  --warning-bg: #3a2f14;
 }
 
 body {
@@ -37,7 +43,7 @@ body {
   color: var(--text);
 }
 
-/* makes large text setting bump up the base font size site-wide */
+/* Makes the large text setting bump up the base font size site-wide. */
 .large-text {
   font-size: 19px;
 }

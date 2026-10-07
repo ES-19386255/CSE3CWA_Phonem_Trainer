@@ -90,3 +90,47 @@ export async function deleteWord(activityId: number, wordId: number): Promise<vo
   const res = await fetch(`/api/activities/${activityId}/words/${wordId}`, { method: "DELETE" });
   await readJson(res);
 }
+
+// ---- Task 3: dashboard, page timing and generation reporting ----
+
+// The shape of /api/stats, taken straight from the function that makes it,
+// so the types can't drift apart.
+export type ApiStats = Awaited<ReturnType<typeof import("./stats").computeStats>>;
+
+export async function fetchStats(): Promise<ApiStats> {
+  const res = await fetch("/api/stats", { cache: "no-store" });
+  return readJson<ApiStats>(res);
+}
+
+// Saves today's numbers as a snapshot row (the server skips it if one was
+// saved in the last minute).
+export async function saveSnapshot(): Promise<void> {
+  const res = await fetch("/api/stats", { method: "POST" });
+  await readJson(res);
+}
+
+// Pings /health and times it, for the dashboard's health card.
+export async function checkHealth(): Promise<{ ok: boolean; status: number; ms: number }> {
+  const started = performance.now();
+  try {
+    const res = await fetch("/health", { cache: "no-store" });
+    return { ok: res.ok, status: res.status, ms: Math.round(performance.now() - started) };
+  } catch {
+    return { ok: false, status: 0, ms: Math.round(performance.now() - started) };
+  }
+}
+
+// Tells the server how a generate click went. It never throws -- a failure
+// to report must not get in the way of the teacher's download.
+export function reportGeneration(input: {
+  activityType: "WORDLE" | "WORDSEARCH";
+  success: boolean;
+  errorMessage?: string;
+  activityId?: number;
+}): void {
+  fetch("/api/events", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  }).catch(() => {});
+}
