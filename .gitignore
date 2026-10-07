@@ -47,3 +47,12 @@ next-env.d.ts
 /lib/generated
 /prisma/*.db
 /prisma/*.db-journal
+# WAL mode makes SQLite create two extra files next to the database
+/prisma/*.db-wal
+/prisma/*.db-shm
+
+# Playwright test output (reports, screenshots, traces)
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

@@ -9,3 +9,11 @@ lib/generated
 *.md
 scripts-diagnostic
 .gitignore
+prisma/*.db
+prisma/*.db-wal
+prisma/*.db-shm
+prisma/*.db-journal
+e2e
+playwright.config.ts
+test-results
+playwright-report
