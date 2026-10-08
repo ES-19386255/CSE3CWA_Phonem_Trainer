@@ -116,7 +116,6 @@ prisma/
 e2e/               Playwright tests (CRUD, generate/view, dashboard, accessibility)
 jmeter/            Load test plan, scripts and README
 scripts/           lighthouse-audit.mjs
-docs/              accessibility.md, video-script.md
 Dockerfile, docker-compose.yml, docker-entrypoint.sh
 ```
 
