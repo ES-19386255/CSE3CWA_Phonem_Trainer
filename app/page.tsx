@@ -25,7 +25,7 @@ export default function HomePage() {
         <Card>
           <h2 className="text-lg font-semibold text-[var(--primary)]">Wordle</h2>
           <p className="mt-1 text-sm text-[var(--text-muted)]">
-            Spell out a phoneme-based answer, preview it as a guessing game, and download it.
+            Spell out a phoneme-based answer, preview it as a guessing game and download it.
           </p>
         </Card>
         <Card>
@@ -37,7 +37,9 @@ export default function HomePage() {
       </div>
 
       <p className="mt-8 text-sm text-[var(--text-muted)]">
-        This is Task 1 of the project: frontend design only. Word lists are fixed for now — see the <Link href="/about" className="text-[var(--primary)] underline">About page</Link> for the full scope.
+        Save word lists in <Link href="/activities" className="text-[var(--primary)] underline">Manage</Link> and
+        keep an eye on usage and alerts on the <Link href="/dashboard" className="text-[var(--primary)] underline">Dashboard</Link>.
+        See the <Link href="/about" className="text-[var(--primary)] underline">About page</Link> for more.
       </p>
     </div>
   );
