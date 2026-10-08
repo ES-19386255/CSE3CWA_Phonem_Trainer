@@ -75,7 +75,7 @@ export default function WordBuilder({
           type="button"
           onClick={() => onSubmit({ english: english.trim(), sounds })}
           disabled={!canSubmit}
-          className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-semibold disabled:opacity-40"
+          className="rounded-md bg-[var(--accent)] text-[var(--on-accent)] px-3 py-1.5 text-sm font-semibold disabled:opacity-40"
         >
           {submitLabel}
         </button>

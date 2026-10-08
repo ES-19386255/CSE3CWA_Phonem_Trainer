@@ -102,8 +102,9 @@ export default function WordlePage() {
       <div className="mx-auto max-w-5xl px-4">
         {savedActivities.length > 0 && (
           <Card>
-            <label className="block text-sm font-medium">Load a saved activity</label>
+            <label htmlFor="saved-activity" className="block text-sm font-medium">Load a saved activity</label>
             <select
+              id="saved-activity"
               value={selectedId}
               onChange={(e) => handleSelectActivity(e.target.value)}
               className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
@@ -137,8 +138,9 @@ export default function WordlePage() {
 
           <PhonemeKeyboard onSelect={addSound} showHints={showHints} />
 
-          <label className="mt-4 block text-sm font-medium">English word</label>
+          <label htmlFor="english-word" className="mt-4 block text-sm font-medium">English word</label>
           <input
+            id="english-word"
             type="text"
             value={english}
             onChange={(e) => setEnglish(e.target.value)}
@@ -153,8 +155,9 @@ export default function WordlePage() {
               <label className="text-sm"><input type="radio" checked={!showHints} onChange={() => setShowHints(false)} /> No</label>
             </div>
             <div>
-              <label className="block text-sm font-medium">Number of guesses</label>
+              <label htmlFor="max-guesses" className="block text-sm font-medium">Number of guesses</label>
               <input
+                id="max-guesses"
                 type="number"
                 min={3}
                 max={8}
@@ -169,7 +172,7 @@ export default function WordlePage() {
             type="button"
             onClick={handleGenerate}
             disabled={!canGenerate}
-            className="mt-5 w-full rounded-md bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold disabled:opacity-40"
+            className="mt-5 w-full rounded-md bg-[var(--accent)] text-[var(--on-accent)] px-4 py-2.5 text-sm font-semibold disabled:opacity-40"
           >
             Generate downloadable HTML
           </button>
@@ -308,7 +311,7 @@ function WordlePreview({ sounds, english, showHints, maxGuesses }: PreviewProps)
         type="button"
         onClick={handleEnter}
         disabled={gameOver || current.length !== sounds.length}
-        className="mt-3 w-full rounded-md bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+        className="mt-3 w-full rounded-md bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)] disabled:opacity-40"
       >
         Enter
       </button>

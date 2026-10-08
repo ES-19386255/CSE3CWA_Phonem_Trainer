@@ -1,10 +1,11 @@
 import { WordSearchGrid } from "@/lib/wordSearchGrid";
 
-// builds the full standalone HTML page for the 'Word Search'
+// Builds the full standalone HTML page for the Word Search activity.
+// The grid is passed in already-built, so the download matches the preview exactly.
 export function buildWordSearchHtml(grid: WordSearchGrid, showHints: boolean): string {
   const gameData = JSON.stringify({
     size: grid.size,
-    letters: grid.letters, // each cell holds only one phoneme symbol
+    letters: grid.letters, // each cell holds one phoneme symbol
     placed: grid.placed,
     showHints: showHints,
   }).replace(/</g, "\\u003c");
@@ -29,20 +30,23 @@ export function buildWordSearchHtml(grid: WordSearchGrid, showHints: boolean): s
 </style>
 </head>
 <body>
+  <main>
   <h1>Phoneme Word Search</h1>
-  <p>Click the first phoneme then the last phoneme to find each word.</p>
+  <p>Tap the first phoneme, then the last phoneme, to find each word.</p>
   <div id="grid"></div>
-  <p id="message" class="message"></p>
+  <p id="message" class="message" role="status" aria-live="polite"></p>
   <ul id="word-list" class="word-list"></ul>
+
+  </main>
 
   <script id="game-data" type="application/json">${gameData}</script>
   <script>
-    // everything below is JavaScript meaning no build step needed (same as the Wordle)
+    // Everything below is plain JavaScript so this page needs no build step.
     var data = JSON.parse(document.getElementById("game-data").textContent);
     var selectedStart = null;
-    var found = []; // holds the English spelling of each found so far
+    var found = []; // holds the English spelling of each word found so far
 
-    // checks whether the two tapped squares are the two ends of a 'hidden word'
+    // Checks whether the two tapped squares are the two ends of a hidden word.
     function matchWord(startRow, startCol, endRow, endCol) {
       for (var i = 0; i < data.placed.length; i++) {
         var w = data.placed[i];
@@ -55,7 +59,7 @@ export function buildWordSearchHtml(grid: WordSearchGrid, showHints: boolean): s
       return null;
     }
 
-    // redraws the grid (highlights words found)
+    // Redraws the phoneme grid, highlighting any words already found.
     function renderGrid() {
       var gridEl = document.getElementById("grid");
       gridEl.style.gridTemplateColumns = "repeat(" + data.size + ", 1fr)";
@@ -76,7 +80,7 @@ export function buildWordSearchHtml(grid: WordSearchGrid, showHints: boolean): s
       }
     }
 
-    // checks grid square belongs to a word already found
+    // Checks whether a grid square belongs to a word already found.
     function isFoundCell(row, col) {
       return data.placed.some(function (w) {
         if (found.indexOf(w.english) === -1) return false;
@@ -87,7 +91,7 @@ export function buildWordSearchHtml(grid: WordSearchGrid, showHints: boolean): s
       });
     }
 
-    // draws the list of phoneme clues below the grid
+    // Draws the list of phoneme clues below the grid.
     function renderWordList() {
       var listEl = document.getElementById("word-list");
       listEl.innerHTML = "";
@@ -100,7 +104,7 @@ export function buildWordSearchHtml(grid: WordSearchGrid, showHints: boolean): s
       });
     }
 
-    // Handler for selecting grid square - first click starts a selection second checks it
+    // Handles a tap on a grid square: first tap starts a selection, second tap checks it.
     function handleCellClick(row, col) {
       if (!selectedStart) {
         selectedStart = { row: row, col: col };

@@ -7,9 +7,9 @@ export type WordleSettings = {
   maxGuesses: number;
 };
 
-// Build for full standalone HTML page for Wordle
+// Builds the full standalone HTML page for the Wordle activity.
 export function buildWordleHtml(settings: WordleSettings): string {
-  // The 'game data' is embedded as a JSON so the page needs no other files
+  // The game data is embedded as JSON so the page needs no other files.
   const gameData = JSON.stringify({
     answer: settings.sounds,
     english: settings.english,
@@ -23,7 +23,7 @@ export function buildWordleHtml(settings: WordleSettings): string {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Phoneme Wordle Page</title>
+<title>Phoneme Wordle</title>
 <style>
   body { font-family: system-ui, sans-serif; background: #f3f7f7; color: #16262b; max-width: 500px; margin: 0 auto; padding: 1rem; text-align: center; }
   h1 { color: #1c4a56; }
@@ -41,22 +41,25 @@ export function buildWordleHtml(settings: WordleSettings): string {
 </style>
 </head>
 <body>
-  <h1>Phoneme Wordle Game</h1>
-  <p>Guess the word, one phoneme at a time!</p>
+  <main>
+  <h1>Phoneme Wordle</h1>
+  <p>Guess the word, one phoneme at a time.</p>
   <div id="grid"></div>
-  <p id="message" class="message"></p>
+  <p id="message" class="message" role="status" aria-live="polite"></p>
   <div id="keyboard" class="keyboard"></div>
   <button id="enter" class="enter" type="button">Enter</button>
 
+  </main>
+
   <script id="game-data" type="application/json">${gameData}</script>
   <script>
-    // Everything below is JavaScript meaning no build step needed
+    // Everything below is plain JavaScript so this page needs no build step.
     var data = JSON.parse(document.getElementById("game-data").textContent);
     var guesses = [];
     var current = [];
     var gameOver = false;
 
-    // Same comparison rule as the React app (works out correct, present or absent per phoneme)
+    // Same comparison rule as the React app: works out correct/present/absent per phoneme.
     function scoreGuess(guess, answer) {
       var result = guess.map(function () { return "absent"; });
       var used = answer.map(function () { return false; });
@@ -72,7 +75,7 @@ export function buildWordleHtml(settings: WordleSettings): string {
       return result;
     }
 
-    // redraws the guess grid to match the current game state
+    // Redraws the guess grid to match the current game state.
     function renderGrid() {
       var gridEl = document.getElementById("grid");
       gridEl.innerHTML = "";
@@ -100,8 +103,10 @@ export function buildWordleHtml(settings: WordleSettings): string {
       }
     }
 
-    // draws every phoneme key once so students can build a guess by clicking
-    // each key shows only the phoneme symbol with mouse over hint
+    // Draws every phoneme key once, so students can build a guess by clicking.
+    // Each key shows only the phoneme symbol -- the letter equivalent
+    // appears as a mouse-over hint (the browser's title tooltip), not as
+    // visible text, per the brief.
     function renderKeyboard() {
       var keyboardEl = document.getElementById("keyboard");
       keyboardEl.innerHTML = "";
@@ -112,13 +117,13 @@ export function buildWordleHtml(settings: WordleSettings): string {
         key.textContent = phoneme.ipa;
         key.disabled = gameOver;
         if (data.showHints) key.title = phoneme.hint;
-        key.setAttribute("aria-label", phoneme.hint);
+        key.setAttribute("aria-label", phoneme.ipa + " (" + phoneme.hint + ")");
         key.addEventListener("click", function () { addSound(phoneme.ipa); });
         keyboardEl.appendChild(key);
       });
     }
 
-    // adds one phoneme to the guess being built (if theres room left)
+    // Adds one phoneme to the guess being built, if there is room left.
     function addSound(ipa) {
       if (gameOver || current.length >= data.answer.length) return;
       current.push(ipa);
@@ -126,7 +131,7 @@ export function buildWordleHtml(settings: WordleSettings): string {
       updateEnterButton();
     }
 
-    // submits the current guess and checks correctness
+    // Submits the current guess and checks whether it is correct.
     function submitGuess() {
       if (gameOver || current.length !== data.answer.length) return;
       guesses.push(current);
@@ -145,7 +150,7 @@ export function buildWordleHtml(settings: WordleSettings): string {
       updateEnterButton();
     }
 
-    // Enables Enter button only once a full guess is done
+    // Enables the Enter button only once a full guess has been built.
     function updateEnterButton() {
       document.getElementById("enter").disabled = gameOver || current.length !== data.answer.length;
     }

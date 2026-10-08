@@ -7,7 +7,8 @@ type Props = {
   highlight?: "correct" | "present" | "absent" | null;
 };
 
-// One phoneme, shown as a button with just it's symbol (the letter) with english equivalent appearing as a mouse-over hint not visible text.
+// One phoneme, shown as a button with just its symbol — the letter
+// equivalent only appears as a mouse-over hint, not as visible text.
 export default function PhonemeButton({ phoneme, onClick, showHint = true, highlight }: Props) {
   const highlightClass =
     highlight === "correct"
@@ -23,7 +24,7 @@ export default function PhonemeButton({ phoneme, onClick, showHint = true, highl
       type="button"
       onClick={onClick}
       title={showHint ? phoneme.hint : undefined}
-      aria-label={phoneme.hint}
+      aria-label={`${phoneme.ipa} (${phoneme.hint})`}
       className={`flex h-11 w-11 items-center justify-center rounded-md border text-base font-semibold ${highlightClass} hover:border-[var(--primary)]`}
     >
       {phoneme.ipa}

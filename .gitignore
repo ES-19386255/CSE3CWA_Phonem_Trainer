@@ -56,3 +56,9 @@ next-env.d.ts
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Lighthouse reports made by scripts/lighthouse-audit.mjs
+/lighthouse-reports/
+
+# JMeter output (made by jmeter/run-stages.sh)
+/jmeter/results/

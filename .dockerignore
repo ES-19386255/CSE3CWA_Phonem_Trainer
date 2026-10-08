@@ -17,3 +17,6 @@ e2e
 playwright.config.ts
 test-results
 playwright-report
+jmeter
+scripts
+docs

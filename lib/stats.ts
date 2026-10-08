@@ -18,7 +18,8 @@ const DAY = 24 * 60 * 60 * 1000;
 export async function computeStats() {
   const now = Date.now();
   const dayAgo = new Date(now - DAY);
-  const trendStart = new Date(now - 13 * DAY);
+  // The trend starts at midnight (UTC) 13 days ago, so the first day is whole.
+  const trendStart = new Date(now - 13 * DAY).toISOString().slice(0, 10) + "T00:00:00";
 
   const [
     activityTypes,
@@ -33,7 +34,7 @@ export async function computeStats() {
     simulatedEvents,
     simulatedViews,
     recentEvents,
-    trendEvents,
+    trendRows,
     lists,
     wordsWithoutPhonemes,
     distinctSymbols,
@@ -66,10 +67,15 @@ export async function computeStats() {
       take: 10,
       include: { activity: { select: { title: true } } },
     }),
-    prisma.generationEvent.findMany({
-      where: { createdAt: { gte: trendStart } },
-      select: { createdAt: true, success: true },
-    }),
+    // Counted by the database itself, one row per day and result. (Loading
+    // every event into JavaScript to count them made this endpoint slower
+    // and slower as the table grew, which the load test showed up.)
+    // SQLite keeps dates as ISO text, so the first 10 characters are the day.
+    prisma.$queryRaw<{ day: string; success: number | bigint; n: number | bigint }[]>`
+      SELECT substr(createdAt, 1, 10) AS day, success, COUNT(*) AS n
+      FROM GenerationEvent
+      WHERE createdAt >= ${trendStart}
+      GROUP BY day, success`,
     prisma.wordList.findMany({
       include: { _count: { select: { words: true } }, activities: { select: { id: true, title: true } } },
     }),
@@ -97,11 +103,11 @@ export async function computeStats() {
     const date = new Date(now - (13 - i) * DAY).toISOString().slice(0, 10);
     return { date, ok: 0, failed: 0 };
   });
-  for (const event of trendEvents) {
-    const bucket = trend.find((day) => day.date === event.createdAt.toISOString().slice(0, 10));
+  for (const row of trendRows) {
+    const bucket = trend.find((day) => day.date === row.day);
     if (!bucket) continue;
-    if (event.success) bucket.ok++;
-    else bucket.failed++;
+    if (Number(row.success) === 1) bucket.ok += Number(row.n);
+    else bucket.failed += Number(row.n);
   }
 
   // ---- alerts ----

@@ -1,6 +1,7 @@
 // Small helpers shared by the tests.
 
-import type { APIRequestContext, Locator, Page } from "@playwright/test";
+import { expect, type APIRequestContext, type Locator, type Page } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 import { ALL_PHONEMES } from "../lib/phonemes";
 
 // Every test makes its own activity with a unique title, so tests never
@@ -9,13 +10,13 @@ export function uniqueTitle(label: string) {
   return `E2E ${label} ${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 }
 
-// A phoneme button's accessible name is its hint (e.g. "th, as in thin"),
+// A phoneme button's accessible name is its symbol plus its hint (e.g. "θ (th, as in thin)"),
 // so this finds the right button from the symbol, using the same data
 // the app uses.
 export function phonemeButton(scope: Page | Locator, ipa: string) {
   const phoneme = ALL_PHONEMES.find((p) => p.ipa === ipa);
   if (!phoneme) throw new Error(`Unknown phoneme in test: ${ipa}`);
-  return scope.getByRole("button", { name: phoneme.hint, exact: true });
+  return scope.getByRole("button", { name: `${phoneme.ipa} (${phoneme.hint})`, exact: true });
 }
 
 // Makes an activity straight through the API (quicker than clicking
@@ -56,4 +57,18 @@ export async function loadSavedActivity(page: Page, title: string) {
 export async function getStats(request: APIRequestContext) {
   const res = await request.get("/api/stats");
   return res.json();
+}
+
+// The accessibility rules checked everywhere: WCAG 2.2 level AA plus
+// axe's general best practices.
+const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"];
+
+// Runs axe on the page and fails with a short, readable list of what
+// broke and where (rule, how serious, and the first few elements).
+export async function expectNoAxeViolations(page: Page) {
+  const results = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
+  const message = results.violations
+    .map((v) => `${v.id} (${v.impact}): ${v.help}\n` + v.nodes.slice(0, 3).map((n) => `    ${n.target.join(" ")}`).join("\n"))
+    .join("\n");
+  expect(results.violations, message).toEqual([]);
 }

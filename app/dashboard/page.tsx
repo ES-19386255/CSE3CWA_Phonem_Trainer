@@ -10,7 +10,7 @@ import type { ApiStats } from "@/lib/apiClient";
 
 type Health = Awaited<ReturnType<typeof api.checkHealth>>;
 
-// Turns seconds into something readable, like "1m 35s".
+// Turns seconds into something readable aka "1m 35s"
 function formatSeconds(total: number) {
   const s = Math.round(total);
   return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
@@ -26,8 +26,7 @@ function formatTime(iso: string) {
   return new Date(iso).toLocaleString("en-AU", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 }
 
-// The dashboard: health, usage numbers, alerts and reports, all read from
-// the database through /api/stats.
+// The dashboard: health, usage numbers, alerts and reports. All read from the database through /api/stats.
 export default function DashboardPage() {
   const [stats, setStats] = useState<ApiStats | null>(null);
   const [health, setHealth] = useState<Health | null>(null);
@@ -35,8 +34,7 @@ export default function DashboardPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [updatedAt, setUpdatedAt] = useState("");
 
-  // Loads stats and health together. The snapshot is saved first (the
-  // server ignores it if one was saved in the last minute).
+  // Loads stats and health together. The snapshot is saved first (the server ignores it if one was saved in the last minute).
   const load = useCallback(async () => {
     try {
       await api.saveSnapshot();
@@ -73,7 +71,7 @@ export default function DashboardPage() {
           <button
             type="button"
             onClick={load}
-            className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-semibold text-black"
+            className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-semibold text-[var(--on-accent)]"
           >
             Refresh now
           </button>

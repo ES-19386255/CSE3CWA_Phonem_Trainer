@@ -6,7 +6,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test, expect, type Download } from "@playwright/test";
-import { createActivityViaApi, deleteActivitiesByTitle, getStats, loadSavedActivity, phonemeButton, uniqueTitle } from "./helpers";
+import { createActivityViaApi, deleteActivitiesByTitle, expectNoAxeViolations, getStats, loadSavedActivity, phonemeButton, uniqueTitle } from "./helpers";
 
 // Saves a download into a temp folder as a real .html file so it can be opened.
 async function saveDownload(download: Download) {
@@ -42,6 +42,7 @@ test("Wordle: generate from a saved activity, then play the downloaded file", as
     // VIEW it: open the downloaded file and win the game with the right answer
     await page.goto(`file://${file}`);
     await expect(page.getByRole("heading", { name: "Phoneme Wordle" })).toBeVisible();
+    await expectNoAxeViolations(page); // the file students use must be accessible too
     for (const sound of ["θ", "ɪ", "n"]) await phonemeButton(page, sound).click();
     await page.getByRole("button", { name: "Enter" }).click();
     await expect(page.locator("#message")).toContainText("Correct!");
@@ -77,6 +78,7 @@ test("Word Search: generate from a saved activity, then find every word in the d
     // VIEW the file: a 10 x 10 grid and three clues
     await page.goto(`file://${file}`);
     await expect(page.locator("#grid .cell")).toHaveCount(100);
+    await expectNoAxeViolations(page); // the file students use must be accessible too
     await expect(page.locator("#word-list li")).toHaveCount(3);
 
     // The file stores where each word is hidden, so use that to click

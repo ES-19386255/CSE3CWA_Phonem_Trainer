@@ -120,8 +120,9 @@ export default function WordSearchPage() {
       <div className="mx-auto max-w-5xl px-4">
         {savedActivities.length > 0 && (
           <Card>
-            <label className="block text-sm font-medium">Load a saved activity</label>
+            <label htmlFor="saved-activity" className="block text-sm font-medium">Load a saved activity</label>
             <select
+              id="saved-activity"
               value={selectedId}
               onChange={(e) => handleSelectActivity(e.target.value)}
               className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
@@ -150,8 +151,9 @@ export default function WordSearchPage() {
             ))}
           </ul>
 
-          <label className="block text-sm font-medium">Difficulty (grid size)</label>
+          <label htmlFor="grid-size" className="block text-sm font-medium">Difficulty (grid size)</label>
           <select
+            id="grid-size"
             value={gridSize}
             onChange={(e) => handleSizeChange(Number(e.target.value))}
             className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
@@ -170,7 +172,7 @@ export default function WordSearchPage() {
           <button
             type="button"
             onClick={handleGenerate}
-            className="mt-5 w-full rounded-md bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold"
+            className="mt-5 w-full rounded-md bg-[var(--accent)] text-[var(--on-accent)] px-4 py-2.5 text-sm font-semibold"
           >
             Generate downloadable HTML
           </button>

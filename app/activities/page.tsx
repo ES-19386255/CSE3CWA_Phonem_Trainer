@@ -12,8 +12,7 @@ function sortedSymbols(word: ApiActivity["words"][number]): string[] {
   return [...word.phonemes].sort((a, b) => a.position - b.position).map((p) => p.symbol);
 }
 
-// The management page: create and delete activities, and add, edit, or
-// delete the words inside each one -- full CRUD, backed by the database.
+// The management page: create and delete activities and add, edit or delete the words inside each one
 export default function ActivitiesPage() {
   const [activities, setActivities] = useState<ApiActivity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,7 +66,7 @@ export default function ActivitiesPage() {
       <PageTitle title="Manage Activities" description="Create, edit, and delete saved activities and their words." />
       <div className="mx-auto max-w-3xl space-y-4 px-4">
         {error && (
-          <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+          <p role="alert" className="rounded-md border border-[var(--danger)] bg-[var(--danger-bg)] px-3 py-2 text-sm font-medium">{error}</p>
         )}
 
         <Card>
@@ -78,9 +77,11 @@ export default function ActivitiesPage() {
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               placeholder="Title"
+              aria-label="Activity title"
               className="flex-1 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
             />
             <select
+              aria-label="Activity type"
               value={newType}
               onChange={(e) => setNewType(e.target.value as "WORDLE" | "WORDSEARCH")}
               className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
@@ -92,7 +93,7 @@ export default function ActivitiesPage() {
               type="button"
               onClick={handleCreateActivity}
               disabled={!newTitle.trim()}
-              className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-semibold disabled:opacity-40"
+              className="rounded-md bg-[var(--accent)] text-[var(--on-accent)] px-4 py-2 text-sm font-semibold disabled:opacity-40"
             >
               Create
             </button>
@@ -119,7 +120,7 @@ export default function ActivitiesPage() {
               <button
                 type="button"
                 onClick={() => runAction(() => api.deleteActivity(activity.id))}
-                className="rounded-md border border-[var(--border)] px-3 py-1 text-sm text-red-600"
+                className="rounded-md border border-[var(--border)] px-3 py-1 text-sm text-[var(--danger)]"
               >
                 Delete activity
               </button>
@@ -158,7 +159,7 @@ export default function ActivitiesPage() {
                           <button
                             type="button"
                             onClick={() => runAction(() => api.deleteWord(activity.id, word.id))}
-                            className="text-xs text-red-600 underline"
+                            className="text-xs text-[var(--danger)] underline"
                           >
                             Delete
                           </button>
