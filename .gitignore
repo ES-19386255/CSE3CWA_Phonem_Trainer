@@ -19,11 +19,14 @@
 
 # production
 /build
-/docs
+
+# zips of the project (submission or downloaded step files)
+*.zip
 
 # misc
 .DS_Store
 *.pem
+/docs
 
 # debug
 npm-debug.log*
