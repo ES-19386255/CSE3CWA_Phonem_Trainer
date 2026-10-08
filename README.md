@@ -1,176 +1,264 @@
-# Phoneme Builder — Task 2 (in progress, 4th attempt)
+# Phoneme Builder — Tasks 1 to 3
 
-A classroom activity builder for Speech Pathology teachers. Teachers build activities out of phonemes (sounds), and the app turns them into a Wordle game or a Word Search puzzle, downloadable as one HTML file.
+A classroom activity builder for Speech Pathology teachers. Teachers build
+activities out of phonemes (sounds), and the app turns them into a Wordle
+game or a Word Search puzzle, downloadable as one HTML file a student can
+open in any browser.
 
-This version adds a real backend and database: activities and their words are now stored in a database via Prisma, instead of being fixed in the frontend code. This is being built in stages — see the progress note below for what's done so far.
+- **Task 1** built the frontend: the builder, the live preview and the HTML export.
+- **Task 2** added the backend: SQLite and Prisma, a CRUD API, validation and Docker.
+- **Task 3** added the dashboard and reporting: a record of every generation
+  and page view, stats, alerts, a `/health` check, end-to-end tests,
+  load tests, accessibility fixes, and Docker Compose with a saved database.
+
+## Node version
+
+Use **Node 22 LTS**. `better-sqlite3` is a native module and has no
+pre-built file for brand-new Node versions. The scripts in `scripts/` and
+`jmeter/` also use `import`, which old Node versions cannot run. With nvm:
+`nvm install 22 && nvm use 22` (and `nvm alias default 22` so every new
+terminal uses it).
+
+## Getting started
+
+```bash
+cp .env.example .env                 # sets DATABASE_URL for local dev
+npm install                          # also runs `prisma generate`
+npx prisma migrate deploy            # creates the database tables
+npm run db:seed                      # starter activities + simulated history
+npm run dev
+```
+
+Open <http://localhost:3000>. Use `npx prisma migrate dev --name <name>`
+instead of `deploy` only when you are changing `schema.prisma`.
+
+`npm run db:seed` **wipes and refills** the database, so run it on a
+database you don't mind resetting. It prints a short summary when it is done.
+
+```bash
+npm run build         # production build (also type-checks)
+npm run lint          # code checks
+npm run db:studio     # Prisma Studio, a GUI for the database
+npm run test:e2e      # Playwright tests (see Testing)
+```
+
+## What the app does
+
+| Page | What it is |
+| --- | --- |
+| `/` | Home |
+| `/wordle`, `/wordsearch` | Build, preview and download an activity. Can load a saved activity |
+| `/activities` | Manage saved activities and their words (full CRUD) |
+| `/dashboard` | **Task 3.** Health, stats, alerts, charts and reports |
+| `/settings` | Dark mode and text size |
+| `/about` | About and the walkthrough video link |
+| `/health` | Returns 200 `{ "status": "ok" }` when the server and database work |
+
+## Dashboard and reporting (Task 3)
+
+`/dashboard` reads everything from the database through `/api/stats`, and
+refreshes by itself every 15 seconds. It shows:
+
+- **Health status** from `/health`
+- **Stat cards:** Wordle and Word Search activity counts, average time on
+  page, most-used activity type, successful and failed generations
+- **A 14-day chart** of generations (successes and failures), with a "Show as
+  table" button for the same numbers
+- **Reports:** usage per activity, time on page per page, and the most recent
+  generation attempts
+- **Alerts** (words as well as colour, "Error" or "Warning"):
+  - *Failed generation:* a warning when some fail, an error when 25% or more
+    of the last 24 hours' attempts failed (needs at least 5 attempts)
+  - *Empty word list:* an activity has no words
+  - *Invalid data:* a word has no phonemes, or uses an unknown symbol
+
+### Where the data comes from
+
+Real use is recorded as it happens:
+
+- Pressing Generate calls `POST /api/activities/:id/generate`, or
+  `POST /api/events` for an unsaved activity, and logs a success or failure.
+- Every page records how long it was visible (`POST /api/page-views`).
+- Opening the dashboard saves a **stat snapshot** (at most one a minute), so
+  the history of the stats is kept in the database too.
+
+`npm run db:seed` also adds **simulated** history (150 generations, 220 page
+views, 7 daily snapshots, an empty-list activity and a broken activity) so
+the dashboard and alerts have something to show. Every fake row has
+`simulated = true`, and the dashboard shows how many simulated rows there are.
+
+## Project layout
+
+```
+app/
+  page.tsx, wordle/, wordsearch/, about/, settings/   Task 1 pages
+  activities/            Task 2: manage activities and words
+  dashboard/             Task 3: the dashboard
+  health/                GET /health
+  api/                   REST route handlers (see the table below)
+
+components/     Reusable pieces (nav bar, cards, WordBuilder, StatCard, TrendChart)
+
+lib/
+  phonemes.ts, wordScore.ts, wordSearchGrid.ts   Game logic
+  buildWordleHtml.ts, buildWordSearchHtml.ts      HTML export
+  db.ts            Shared Prisma connection (SQLite, WAL mode)
+  stats.ts         Task 3: works out every number on the dashboard
+  checkActivity.ts Task 3: finds empty lists and invalid words
+  validation.ts    zod schemas for every write endpoint
+  apiError.ts, apiClient.ts, usePageTimer.ts
+
+prisma/
+  schema.prisma    The data model
+  seed.ts          Starter data + simulated history
+  migrations/      Version history of database changes
+
+e2e/               Playwright tests (CRUD, generate/view, dashboard, accessibility)
+jmeter/            Load test plan, scripts and README
+scripts/           lighthouse-audit.mjs
+docs/              accessibility.md, video-script.md
+Dockerfile, docker-compose.yml, docker-entrypoint.sh
+```
+
+## Database schema
+
+- **WordList** — a named, reusable list of words. Many activities can share one.
+- **Word** — one word in a list. **Phoneme** — one sound in a word, its own
+  row so a symbol like `tʃ` is never split. `order`/`position` keep the sequence.
+- **Activity** — one Wordle or Word Search configuration. It points at a
+  WordList (and cannot be left without one).
+- **GenerationEvent** — one attempt to generate: type, success or failure,
+  error message, `simulated` flag, time.
+- **PageView** — one visit to a page: path, seconds visible, `simulated`, time.
+- **StatSnapshot** — the headline stats saved at a moment in time, so they can be
+  reported over time.
+
+Deleting a list deletes its words and phonemes, and the database won't
+allow it while an activity still uses the list. Deleting an activity keeps
+its events (they just lose the link), so the history isn't lost.
 
 ## API routes
 
-All routes live under `app/api/` (Next.js App Router route handlers), except
-the health check, which the brief specifically asks for at `/health`.
-
 | Route | Method | What it does |
 |---|---|---|
-| `/health` | GET | Returns `{ status: "ok" }` with 200 if the server and database are both reachable. |
-| `/api/activities` | GET | Lists every saved activity, with its words and phonemes included. |
-| `/api/activities` | POST | Creates a new activity, optionally with an initial word list. |
-| `/api/activities/:id` | GET | Fetches one activity in full. |
-| `/api/activities/:id` | PATCH | Updates an activity's own settings (title, type, hints, difficulty) — not its words. |
-| `/api/activities/:id` | DELETE | Deletes an activity (its words and their phonemes cascade automatically). |
-| `/api/activities/:id/words` | POST | Adds a new word (with phonemes) to an activity. |
-| `/api/activities/:id/words/:wordId` | PATCH | Updates a word's spelling and/or phonemes. |
-| `/api/activities/:id/words/:wordId` | DELETE | Deletes one word. |
+| `/health` | GET | 200 `{ status: "ok" }` if the server and database work |
+| `/api/activities` | GET, POST | List activities / create one |
+| `/api/activities/:id` | GET, PATCH, DELETE | Read, update or delete one activity |
+| `/api/activities/:id/generate` | POST | Check the activity, log the attempt, return the download. **422** and a logged failure if it has problems |
+| `/api/activities/:id/words` | POST | Add a word to the activity's list |
+| `/api/activities/:id/words/:wordId` | PATCH, DELETE | Edit or delete a word |
+| `/api/wordlists` | GET | List the word lists |
+| `/api/events` | POST | Log a generation (a failure needs an `errorMessage`) |
+| `/api/page-views` | POST | Log a page visit |
+| `/api/stats` | GET | Every number for the dashboard, and the alerts |
+| `/api/stats` | POST | Save a stat snapshot (refused if one was saved in the last 60 s) |
 
-Every write endpoint validates its input with `zod` (see `lib/validation.ts`)
-before touching the database, and every error comes back as
-`{ "error": "a readable message" }` with an appropriate status code (400 for
-bad input, 404 for something that doesn't exist).
+Every write is checked with `zod` first. Every error has the same shape,
+`{ "error": "a readable message" }`, with 400 for bad input, 404 for
+something missing, 422 for an activity that can't be generated, and 500 for
+anything unexpected (see `withErrorHandling` in `lib/apiError.ts`).
 
-This was tested with a temporary stand-in for the real database client (for
-the same sandbox-network reason described above), sending real HTTP
-requests to every route and checking the exact status codes and error
-messages returned — but not against the real Prisma-generated client yet.
-Worth trying each route for real once this is running locally.
+## Testing
 
-## Frontend integration
+### Playwright (end to end)
 
-- **`/activities`** — a management page: create and delete activities,
-  and add, edit, or delete the words inside each one. This is where full
-  CRUD on words actually happens.
-- **Wordle and Word Search pages** — both now offer a "Load a saved
-  activity" dropdown at the top. Picking one loads its word(s) and
-  settings straight into the existing builder, so the same preview and
-  Generate button work from stored data instead of only the fixed Task 1
-  example. Both pages also gained a "Save to library" field, so a word
-  list built in the browser can be kept in the database for later.
-- **`lib/apiClient.ts`** — small fetch wrapper functions shared by all of
-  the above, so every page talks to the backend the same way.
+```bash
+npx playwright install chromium   # first time only
+npm run test:e2e
+```
 
-This step was tested two ways: the `apiClient` functions against a mocked
-`fetch` (confirming the right URL/method/body for every call), and the new
-`WordBuilder` component (used for both adding and editing a word) by
-directly mounting it and simulating real clicks — building the word "sun"
-by clicking phoneme keys and confirming it submitted exactly
-`{ english: "sun", sounds: ["s", "ɐ", "n"] }`. The full pages were also
-checked with a temporary stand-in database client (see the note below) to
-confirm they render correctly and contain the expected content, though the
-interactive load/save flow hasn't been exercised against a real database
-yet — worth trying for real once this is running locally.
+Playwright starts its own copy of the app on port 3100 with its own
+database (`prisma/e2e.db`), so it never touches your dev data. It runs 31 tests:
+
+- `builder-crud.spec.ts` — create, read, update and delete in the builder
+- `generate-view.spec.ts` — generate a Wordle and a Word Search, open the
+  downloaded file, play it, and check the generation was counted
+- `dashboard.spec.ts` — `/health` is 200, and an empty list raises an alert
+- `accessibility.spec.ts` — axe checks on every page in light, dark and large
+  text, plus keyboard checks
+
+`npm run test:e2e:report` opens the last HTML report.
+
+### Load testing (JMeter)
+
+See [`jmeter/README.md`](jmeter/README.md). In short, in two terminals:
+
+```bash
+./jmeter/start-load-server.sh                                  # terminal 1
+JMETER=~/apache-jmeter-5.6.3/bin/jmeter ./jmeter/run-stages.sh # terminal 2
+```
+
+It runs 1, 10, 100, 1,000 and 10,000 teacher sessions (10 requests each)
+against a separate database, and writes a table to `jmeter/results/summary.md`
+and an HTML report per stage. In my run there were no failed requests at any
+stage. At x10000 (200 users at once) the average response was 274 ms, with a
+slow worst case caused by SQLite allowing one writer at a time.
+
+### Accessibility (Lighthouse and axe)
+
+```bash
+export CHROME_PATH=$(node -e "console.log(require('@playwright/test').chromium.executablePath())")
+node scripts/lighthouse-audit.mjs        # app must be running on port 3000
+```
+
+All pages score 100 for accessibility. What was wrong, what was fixed and
+what has not been checked (for example a real screen reader) is in
+[`docs/accessibility.md`](docs/accessibility.md).
 
 ## Docker
+
+### With Docker Compose (keeps the database)
+
+```bash
+docker compose up --build      # then open http://localhost:3000
+docker compose down            # stop; the data is kept
+docker compose down -v         # stop and delete the data
+```
+
+The database lives at `/app/data/app.db` inside the container, on a named
+volume called `phoneme-data`. Anything you create or generate is still
+there after a restart.
+
+### With plain Docker (starts fresh every time)
 
 ```bash
 docker build -t phoneme-builder .
 docker run -p 3000:3000 phoneme-builder
 ```
 
-Then open <http://localhost:3000>, or check <http://localhost:3000/health>.
+Add `-v phoneme-data:/app/data` to keep the data here too.
 
-The Dockerfile is a three-stage build:
+### How it works
 
-1. **deps** — installs dependencies once, in their own layer, so this step
-   is only re-run when `package.json`/`package-lock.json` actually change.
-2. **builder** — copies in the source, generates the Prisma client,
-   creates and seeds a starter SQLite database, and runs `next build`, all
-   inside the image.
-3. **runner** — copies across only what's needed to actually run the app
-   (`node_modules`, the built `.next` output, `public`, `prisma`, and the
-   config files), and runs it as a non-root user.
+1. **deps** installs dependencies in their own layer.
+2. **builder** generates the Prisma client, creates and seeds a starter
+   database (`prisma/dev.db`), and runs `next build`.
+3. **runner** copies across only what is needed and runs as a non-root user.
 
-A Debian-based image (`node:22-bookworm-slim`), not Alpine, is used on
-purpose: `better-sqlite3` is a native module, and Debian's glibc has much
-more reliable pre-built binaries available for it than Alpine's musl libc,
-which often forces a slower, more error-prone compile-from-source step.
+When the container starts, `docker-entrypoint.sh` copies the seeded database
+to `/app/data/app.db` **only if there is no database there yet**, runs
+`prisma migrate deploy` (so an older saved database is brought up to date),
+then starts the app. With a volume this happens once; without one, every
+new container starts from the seeded copy.
 
-The image also declares a `HEALTHCHECK` that calls `/health` directly, so
-`docker ps` reports the container's health using the same endpoint the
-brief asks for.
+The image has a `HEALTHCHECK` that calls `/health`, so `docker ps` shows
+`(healthy)`. It uses `node:22-bookworm-slim` (Debian, not Alpine) because
+`better-sqlite3` has far more reliable pre-built files for glibc.
 
-**Data note:** the database is seeded once, at build time, and lives
-inside the image — so every fresh `docker run` starts from the same known
-state, but changes made while the container is running won't survive a
-restart unless a volume is mounted over `/app/prisma`, e.g.:
+## Limits I know about
 
-```bash
-docker run -p 3000:3000 -v phoneme-data:/app/prisma phoneme-builder
-```
-## Node version
-
-Use Node 22 LTS (or another LTS release), not the very newest "Current"
-version. `better-sqlite3` (the SQLite driver Prisma's adapter uses) needs
-to compile a small native addon against Node's V8 engine, and pre-built
-binaries for brand-new, non-LTS Node releases often aren't published yet
-— which can cause `npm install` to try compiling from source and fail on
-V8 API changes. With `nvm`: `nvm install 22 && nvm use 22`.
-
-## Getting started
-
-```bash
-npm install          # also runs `prisma generate` automatically
-npx prisma migrate dev --name init   # creates the database and its tables
-npm run db:seed       # fills it with two starter activities
-npm run dev
-```
-
-Open <http://localhost:3000>.
-
-```bash
-npm run build   # production build (also type-checks)
-npm run lint    # code checks
-npm run db:studio   # opens Prisma Studio, a GUI for browsing the database
-```
-
-## Project layout
-
-```
-app/            Pages and (soon) API routes
-components/     Small reusable pieces (buttons, nav bar, cards)
-lib/            Data and logic with no React in it
-prisma/
-  schema.prisma   The database schema (source of truth for the data model)
-  seed.ts         Fills the database with starter data
-  migrations/     Version history of database changes (created by prisma migrate)
-prisma.config.ts  Tells the Prisma CLI where the schema and seed script live
-```
-
-## Database schema
-
-Three tables, matching how phoneme-based activities actually work:
-
-- **Activity** — one saved Wordle or Word Search configuration (title, type,
-  hint/difficulty settings).
-- **Word** — one word inside an activity, in its English spelling.
-- **Phoneme** — one sound inside a word, stored as its own row (not one
-  character of a text field), so a multi-character symbol like `tʃ` is
-  never a problem. An `order`/`position` field on Word and Phoneme keeps
-  everything in the right sequence.
-
-Deleting an Activity cascades to delete its Words, and deleting a Word
-cascades to delete its Phonemes — so cleanup is automatic.
-
-## Known issue: one residual npm audit finding
-
-`npm audit` will show one remaining high-severity issue in `deepmerge-ts`,
-pulled in by Prisma's own CLI config tooling (`@prisma/config`). This is a
-stack-overflow risk in a dev-time config-parsing tool, not in code that
-runs in production or is reachable by an end user, and there's currently no
-Prisma version available that fixes it while still supporting the
-Rust-free "no native binary" mode this project uses. Worth being aware of,
-not worth blocking on.
-
-## Troubleshooting: page loads but nothing is clickable in `npm run dev`
-
-If the app looks fully styled but no buttons, keyboards, or toggles respond
-to clicks, this is very likely a network/firewall issue rather than a code
-issue. `npm run dev` opens a WebSocket connection back to the dev server for
-hot-reloading (Fast Refresh); if that connection is blocked (common on
-corporate networks, VPNs, or with strict firewalls), the page renders but
-React never finishes starting up, with no obvious console error.
-
-Workaround: use a production build instead of dev mode.
-
-```bash
-npm run build
-npm run start
-```
-
+- **SQLite allows one writer at a time.** The load test shows it: no
+  failures, but the worst responses got slow at 200 users at once. WAL mode and
+  a busy timeout help. For real heavy use I would move to PostgreSQL.
+- **One app instance only.** Because the database is a file, two containers
+  can't safely share it.
+- **The simulated data is fake.** It is marked `simulated = true`, and
+  it is there so the dashboard has something to show.
+- **Time on page** only counts while the tab is visible, and visits under one
+  second are ignored.
+- **Accessibility:** passing the automatic tools is a good start, not proof.
+  I haven't tried a real screen reader.
+- **One audit warning:** `npm audit` shows a high-severity finding in
+  `deepmerge-ts`, pulled in by Prisma's own CLI config tooling. It is a
+  dev-time tool, not code that runs for users, and no Prisma version fixes it
+  while still supporting the "no native binary" mode used here.

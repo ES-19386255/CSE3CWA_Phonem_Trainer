@@ -1,0 +1,19 @@
+# Starts the app with a volume, so the database survives restarts.
+#   docker compose up --build     start it
+#   docker compose down           stop it (data is kept)
+#   docker compose down -v        stop it and delete the data
+services:
+  app:
+    build: .
+    image: phoneme-builder
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "file:/app/data/app.db"
+    volumes:
+      - phoneme-data:/app/data
+    restart: unless-stopped
+    # The health check comes from the Dockerfile (it calls /health).
+
+volumes:
+  phoneme-data:

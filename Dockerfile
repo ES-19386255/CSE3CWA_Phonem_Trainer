@@ -37,7 +37,9 @@ RUN npm run build
 # ---- Run ----------------------------------------------------------------
 FROM base AS runner
 ENV NODE_ENV=production
-ENV DATABASE_URL="file:./dev.db"
+# The live database sits in /app/data, away from the code, so a volume can
+# be mounted there without hiding the app's own files.
+ENV DATABASE_URL="file:/app/data/app.db"
 ENV PORT=3000
 
 # Runs as a dedicated, non-root user rather than the image's default root,
@@ -50,18 +52,21 @@ COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/next.config.ts ./next.config.ts
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
-# Includes the seeded dev.db created during the build above, so the
-# container has working example data the moment it starts.
+# Includes the seeded dev.db created during the build above. The start
+# script copies it to /app/data the first time, so there is example data.
 COPY --from=builder /app/prisma ./prisma
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
 
-RUN chown -R nextjs:nodejs /app
+# Made here, owned by nextjs, so a new named volume copies that owner.
+RUN chmod +x docker-entrypoint.sh && mkdir -p /app/data \
+ && chown -R nextjs:nodejs /app
 USER nextjs
 
 EXPOSE 3000
 
 # Lets Docker itself (and `docker ps`) report whether the app is actually
 # healthy, using the same /health endpoint the brief asks for.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD node -e "fetch('http://localhost:3000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
-CMD ["npm", "run", "start"]
+CMD ["./docker-entrypoint.sh"]

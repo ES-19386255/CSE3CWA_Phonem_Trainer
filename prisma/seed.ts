@@ -171,6 +171,9 @@ async function main() {
     });
   }
 
+  // Empty the WAL file into dev.db, so the copy made in Docker is complete.
+  await prisma.$queryRawUnsafe("PRAGMA wal_checkpoint(TRUNCATE)");
+
   console.log("Seed complete:");
   console.log(`  ${wordleCount} Wordle + ${wordSearchCount} Word Search activities (some simulated)`);
   console.log(`  ${events.length} simulated generation attempts`);
