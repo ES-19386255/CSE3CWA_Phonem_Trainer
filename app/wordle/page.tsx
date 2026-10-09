@@ -7,6 +7,7 @@ import PhonemeKeyboard from "@/components/PhonemeKeyboard";
 import { DEFAULT_WORDLE_WORD, findPhoneme } from "@/lib/phonemes";
 import { scoreGuess, isCorrectGuess } from "@/lib/wordScore";
 import { buildWordleHtml } from "@/lib/buildWordleHtml";
+import { findProblems } from "@/lib/checkActivity";
 import { downloadTextFile } from "@/lib/download";
 import * as api from "@/lib/apiClient";
 import type { ApiActivity } from "@/lib/apiClient";
@@ -36,9 +37,17 @@ export default function WordlePage() {
   // Loads a saved activity's word straight into the builder.
   function handleSelectActivity(id: string) {
     setSelectedId(id);
+    setGenerateMessage("");
     const activity = savedActivities.find((a) => String(a.id) === id);
-    const word = activity?.words[0];
-    if (!activity || !word) return;
+    if (!activity) return;
+    const word = activity.words[0];
+    if (!word) {
+      // An empty list: clear the builder so it doesn't show the old word.
+      setSounds([]);
+      setEnglish("");
+      setShowHints(activity.showHints);
+      return;
+    }
     setSounds([...word.phonemes].sort((a, b) => a.position - b.position).map((p) => p.symbol));
     setEnglish(word.english);
     setShowHints(activity.showHints);
@@ -83,6 +92,8 @@ export default function WordlePage() {
     setGenerateMessage("");
     const activityId = selectedId ? Number(selectedId) : undefined;
     try {
+      // A saved activity with a problem (empty list, no phonemes) fails here.
+      if (savedProblems.length > 0) throw new Error(savedProblems[0]);
       if (sounds.length === 0) throw new Error("Word list is empty");
       const html = buildWordleHtml({ sounds, english, showHints, maxGuesses });
       downloadTextFile(`wordle-${english || "activity"}.html`, html);
@@ -94,7 +105,19 @@ export default function WordlePage() {
     }
   }
 
-  const canGenerate = sounds.length > 0 && english.trim().length > 0;
+  // Problems with the saved activity that is picked (if any).
+  const selectedActivity = savedActivities.find((a) => String(a.id) === selectedId);
+  const savedProblems = selectedActivity
+    ? findProblems(
+        selectedActivity.words.map((w) => ({
+          english: w.english,
+          sounds: [...w.phonemes].sort((a, b) => a.position - b.position).map((p) => p.symbol),
+        })),
+      )
+    : [];
+
+  // Stays clickable for a broken saved activity, so the failure is shown and logged.
+  const canGenerate = (sounds.length > 0 && english.trim().length > 0) || savedProblems.length > 0;
 
   return (
     <div className="pb-12">

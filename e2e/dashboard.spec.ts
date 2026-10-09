@@ -2,7 +2,7 @@
 // alert that appears when an activity can't be generated.
 
 import { test, expect } from "@playwright/test";
-import { createActivityViaApi, deleteActivitiesByTitle, uniqueTitle } from "./helpers";
+import { createActivityViaApi, deleteActivitiesByTitle, getStats, loadSavedActivity, uniqueTitle } from "./helpers";
 
 test("/health returns 200", async ({ request }) => {
   const res = await request.get("/health");
@@ -26,6 +26,23 @@ test("dashboard shows health, the key numbers and an alert for an empty word lis
     await expect(page.getByRole("heading", { name: "Key numbers" })).toBeVisible();
     await expect(page.getByText(`"${title}" uses an empty word list`)).toBeVisible();
     await expect(page.getByRole("heading", { name: /^Alerts \(\d+\)$/ })).toBeVisible();
+  } finally {
+    await deleteActivitiesByTitle(request, title);
+  }
+});
+
+test("Wordle: generating a saved activity with an empty word list shows an error and is counted", async ({ page, request }) => {
+  const title = uniqueTitle("Empty Wordle");
+  try {
+    await createActivityViaApi(request, { title, type: "WORDLE" });
+    const before = (await getStats(request)).generations.failed;
+
+    await page.goto("/wordle");
+    await loadSavedActivity(page, title);
+    await page.getByRole("button", { name: "Generate downloadable HTML" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "Word list is empty" })).toBeVisible();
+
+    await expect.poll(async () => (await getStats(request)).generations.failed).toBe(before + 1);
   } finally {
     await deleteActivitiesByTitle(request, title);
   }
